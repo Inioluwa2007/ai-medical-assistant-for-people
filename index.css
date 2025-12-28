@@ -1,0 +1,32 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50;
+    background: radial-gradient(at top left, #eff6ff 0%, #ffffff 100%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+  
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border-white/20;
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
