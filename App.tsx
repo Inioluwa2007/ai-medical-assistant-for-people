@@ -124,7 +124,7 @@ const App: React.FC = () => {
       const newSession: ChatSession = {
         id: sessionId,
         messages: [],
-        title: text.substring(0, 30) || (selectedImage ? 'Image Chat' : 'New Chat')
+        title: text.substring(0, 30) || (selectedImage ? 'Label Review' : 'Health Inquiry')
       };
       setSessions(prev => [newSession, ...prev]);
       setCurrentSessionId(sessionId);
@@ -138,7 +138,6 @@ const App: React.FC = () => {
       image: selectedImage || undefined
     };
 
-    // Update local state for immediate feedback
     setSessions(prev => prev.map(s => 
       s.id === sessionId 
         ? { 
@@ -154,32 +153,25 @@ const App: React.FC = () => {
     setIsLoading(true);
 
     try {
-      setSessions(prevSessions => {
-        const targetSession = prevSessions.find(s => s.id === sessionId);
-        const history = targetSession?.messages || [userMsg];
-        
-        sendMessageToGemini(history).then(({ text: aiResponse, sources }) => {
-          const assistantMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            role: MessageRole.ASSISTANT,
-            content: aiResponse,
-            timestamp: new Date(),
-            sources: sources
-          };
+      const targetSession = sessions.find(s => s.id === sessionId);
+      const history = targetSession ? [...targetSession.messages, userMsg] : [userMsg];
+      
+      const { text: aiResponse, sources } = await sendMessageToGemini(history);
+      
+      const assistantMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: MessageRole.ASSISTANT,
+        content: aiResponse,
+        timestamp: new Date(),
+        sources: sources
+      };
 
-          setSessions(sPrev => sPrev.map(s => 
-            s.id === sessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s
-          ));
-          setIsLoading(false);
-        }).catch(err => {
-          console.error("Gemini failed:", err);
-          setIsLoading(false);
-        });
-
-        return prevSessions;
-      });
+      setSessions(sPrev => sPrev.map(s => 
+        s.id === sessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s
+      ));
     } catch (error) {
-      console.error("Failed to fetch response", error);
+      console.error("Gemini failed:", error);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -206,52 +198,54 @@ const App: React.FC = () => {
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
-      <main className="flex-1 flex flex-col min-w-0 bg-white relative">
+      <main className="flex-1 flex flex-col min-w-0 bg-transparent relative">
         {/* Header */}
-        <header className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-md z-20">
-          <div className="flex items-center gap-3">
+        <header className="px-6 py-5 border-b border-indigo-50 flex items-center justify-between glass z-20">
+          <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-800 transition-colors"
-              aria-label="Open Sidebar"
+              className="lg:hidden p-2.5 -ml-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-2xl transition-all"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16m-7 6h7" />
               </svg>
             </button>
-            <div className="hidden sm:flex items-center gap-3">
-              <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-100">
+            <div className="hidden sm:flex items-center gap-4">
+              <div className="bg-gradient-to-tr from-indigo-600 to-cyan-400 p-2.5 rounded-2xl shadow-xl shadow-indigo-100 rotate-3">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
               </div>
-              <h1 className="text-xl font-bold text-slate-800 tracking-tight">MediGuide AI</h1>
+              <h1 className="text-2xl font-black text-slate-800 tracking-tight">MediGuide</h1>
             </div>
             {currentSession && (
-              <span className="hidden sm:block text-slate-300 mx-2">|</span>
+              <span className="hidden sm:block text-slate-200 text-2xl font-thin mx-1">/</span>
             )}
-            <h2 className="text-sm font-medium text-slate-500 truncate max-w-[200px]">
-              {currentSession?.title || 'New Consultation'}
+            <h2 className="text-sm font-bold text-slate-500 truncate max-w-[180px] bg-slate-50 px-4 py-1.5 rounded-full border border-slate-100">
+              {currentSession?.title || 'Brand New Session'}
             </h2>
           </div>
           
           <button 
             onClick={createNewSession}
-            className="text-xs font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-full hover:bg-blue-100 transition-all active:scale-95"
+            className="group flex items-center gap-2 text-xs font-black text-indigo-600 bg-white border-2 border-indigo-50 px-5 py-2.5 rounded-2xl hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all active:scale-95 shadow-sm"
           >
-            Start Fresh
+            <svg className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" />
+            </svg>
+            START FRESH
           </button>
         </header>
 
         {/* Scrollable Chat Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-          <div className="max-w-3xl mx-auto pb-24">
+          <div className="max-w-4xl mx-auto pb-32">
             <Disclaimer />
             
             {messages.length === 0 ? (
               <Welcome onQuickAction={handleSend} />
             ) : (
-              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
                 {messages.map((msg) => (
                   <ChatMessage 
                     key={msg.id} 
@@ -261,14 +255,14 @@ const App: React.FC = () => {
                 ))}
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-slate-50 border border-slate-100 rounded-2xl rounded-tl-none p-4 shadow-sm">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex space-x-1">
-                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"></div>
+                    <div className="bg-white border-b-4 border-indigo-50 rounded-[2rem] rounded-tl-none p-6 shadow-xl">
+                      <div className="flex flex-col gap-4">
+                        <div className="flex space-x-2">
+                          <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                          <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                          <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-bounce"></div>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest animate-pulse">Analysing health data...</p>
+                        <p className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em] animate-pulse">Researching health insights...</p>
                       </div>
                     </div>
                   </div>
@@ -280,55 +274,57 @@ const App: React.FC = () => {
         </div>
 
         {/* Floating Input Area */}
-        <div className="bg-gradient-to-t from-white via-white to-transparent pt-10 pb-6 px-6 sticky bottom-0 z-10">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white/95 to-transparent pt-16 pb-8 px-6 z-10">
           <div className="max-w-3xl mx-auto">
             {selectedImage && (
-              <div className="mb-4 relative inline-block animate-in fade-in slide-in-from-bottom-2">
-                <img src={selectedImage} alt="Selected" className="h-20 w-20 object-cover rounded-xl border-2 border-blue-500 shadow-lg" />
+              <div className="mb-6 relative inline-block animate-in fade-in zoom-in duration-300">
+                <div className="absolute inset-0 bg-indigo-500 blur-2xl opacity-20"></div>
+                <img src={selectedImage} alt="Selected" className="relative h-24 w-24 object-cover rounded-[1.5rem] border-4 border-white shadow-2xl rotate-2" />
                 <button 
                   onClick={() => setSelectedImage(null)}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-colors"
+                  className="absolute -top-3 -right-3 bg-rose-500 text-white rounded-full p-2 shadow-xl hover:bg-rose-600 transition-all hover:scale-110 active:scale-90"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
             )}
             
-            <form onSubmit={onFormSubmit} className="relative flex gap-2">
-              <div className="flex-1 relative group">
+            <form onSubmit={onFormSubmit} className="relative flex gap-3 group">
+              <div className="flex-1 relative">
+                <div className="absolute inset-0 bg-indigo-600/5 blur-2xl group-focus-within:bg-indigo-600/10 transition-colors"></div>
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about symptoms, conditions, or medications..."
-                  className="w-full bg-white border-2 border-slate-100 rounded-2xl py-4 pl-6 pr-24 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-sm lg:text-base text-slate-900 font-medium placeholder:text-slate-400 shadow-xl shadow-slate-200/50"
+                  placeholder="Tell me about your health concern..."
+                  className="relative w-full bg-white/90 border-2 border-indigo-50 rounded-[2.5rem] py-5 pl-8 pr-28 focus:outline-none focus:border-indigo-400 focus:ring-8 focus:ring-indigo-500/5 transition-all text-base text-slate-900 font-bold placeholder:text-slate-400 shadow-2xl shadow-indigo-100/50 glass"
                   disabled={isLoading}
                 />
-                <div className="absolute right-2 top-2 flex gap-1">
+                <div className="absolute right-3 top-2 bottom-2 flex gap-1.5">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                    title="Attach image"
+                    className="p-3 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-[1.5rem] transition-all active:scale-90"
+                    title="Scan label or document"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </button>
                   <button
                     type="submit"
                     disabled={(!input.trim() && !selectedImage) || isLoading}
-                    className={`p-3 rounded-xl transition-all ${
+                    className={`p-4 rounded-[1.5rem] transition-all active:scale-95 shadow-xl ${
                       (input.trim() || selectedImage) && !isLoading 
-                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200' 
-                        : 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                        ? 'bg-gradient-to-br from-indigo-600 to-blue-600 text-white hover:from-indigo-700 hover:to-blue-700 shadow-indigo-200' 
+                        : 'bg-slate-100 text-slate-300 cursor-not-allowed shadow-none'
                     }`}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 12h14M12 5l7 7-7 7" />
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
                   </button>
                 </div>
@@ -341,8 +337,8 @@ const App: React.FC = () => {
                 className="hidden" 
               />
             </form>
-            <p className="text-center text-[10px] text-slate-400 mt-3 font-medium uppercase tracking-wider">
-              Student Project • Powered by Gemini Reasoning • Non-Emergency Use Only
+            <p className="text-center text-[10px] text-indigo-400 mt-5 font-black uppercase tracking-[0.4em] opacity-60">
+              Student Project • Powered by Gemini Flash • No Emergency Use
             </p>
           </div>
         </div>
