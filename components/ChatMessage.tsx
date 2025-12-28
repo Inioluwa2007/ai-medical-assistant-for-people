@@ -47,6 +47,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFeedback })
         </div>
         
         <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+          {message.image && (
+            <div className="mb-2 rounded-xl overflow-hidden border border-slate-200 shadow-sm max-w-sm">
+              <img src={message.image} alt="User upload" className="w-full h-auto object-cover max-h-60" />
+            </div>
+          )}
+          
           <div className={`p-4 rounded-2xl shadow-sm border relative ${
             isUser 
               ? 'bg-blue-600 border-blue-600 text-white rounded-tr-none' 
@@ -69,10 +75,33 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFeedback })
                 )}
               </button>
             )}
-            <div className={`text-sm leading-relaxed overflow-wrap-anywhere`}>
+            <div className="text-sm leading-relaxed overflow-wrap-anywhere space-y-1">
               {formatContent(message.content)}
             </div>
+
+            {!isUser && message.sources && message.sources.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Sources Checked</p>
+                <div className="grid grid-cols-1 gap-1">
+                  {message.sources.map((source, idx) => (
+                    <a 
+                      key={idx} 
+                      href={source.uri} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 text-[11px] text-blue-600 truncate"
+                    >
+                      <svg className="w-3 h-3 flex-shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      {source.title}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+          
           <div className="flex items-center gap-2 mt-1 px-1">
             <span className="text-[10px] text-slate-400 font-medium">
               {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

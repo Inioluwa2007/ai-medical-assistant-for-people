@@ -1,31 +1,40 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { Message, MessageRole } from "../types";
+import { Message, MessageRole, GroundingSource } from "../types";
 
 const SYSTEM_INSTRUCTION = `
 You are MediGuide AI, a specialized virtual assistant for preliminary medical guidance and health education.
-You are part of a student-built MVP designed for accessibility and non-emergency support.
+You use Google Search to provide up-to-date information.
 
 CORE OPERATIONAL PROTOCOL:
-1. SIMPLE LANGUAGE: Translate complex medical jargon into clear, comforting, non-technical language suitable for students and general public.
-2. NO DIAGNOSIS: Never state "You have [Condition]". Instead, use phrasing like "These symptoms are common in conditions like...", "It could be related to...", or "Often, this is seen when...".
-3. SAFETY FIRST: If a user mentions "Chest pain", "Shortness of breath", "Severe bleeding", "Stroke symptoms (face drooping, arm weakness, speech difficulty)", or "Intense abdominal pain", your ONLY response should be to tell them to call 911 (or local emergency services) IMMEDIATELY.
-4. MANDATORY DISCLAIMER: Every single response must conclude with: "Disclaimer: This is for educational guidance only. It is not a diagnosis or professional medical advice. Please consult a qualified healthcare provider for clinical care."
-5. STRUCTURED ANSWERS: Use bolding for emphasis and bullet points for lists (e.g., potential causes, next steps, home care tips).
-6. NEXT STEPS: Always suggest practical next steps (e.g., "Monitor your temperature for 24 hours", "Stay hydrated", "Schedule a non-emergency appointment if pain persists").
-7. MEDICATIONS: You may explain what over-the-counter medications are typically used for (e.g., "Acetaminophen is commonly used for fever"), but always warn the user to speak with a pharmacist or doctor before taking new medication.
-
-TONE: Professional, empathetic, calm, and educational.
+1. SIMPLE LANGUAGE: Translate complex medical jargon into clear, comforting, non-technical language for students.
+2. NO DIAGNOSIS: Never state "You have [Condition]". Use phrasing like "These symptoms are commonly associated with conditions like...".
+3. SAFETY FIRST: If a user mentions emergency symptoms (chest pain, stroke signs, severe bleeding, or extreme pain), your ONLY response is to instruct them to call 911 (or local emergency services) immediately.
+4. SEARCH GROUNDING: Use Google Search to verify recent health data. Cite your findings indirectly by answering based on the facts.
+5. MANDATORY DISCLAIMER: Every response MUST conclude with: "Disclaimer: This is for educational guidance only. It is not a diagnosis or professional medical advice. Please consult a qualified healthcare provider for clinical care."
+6. IMAGE ANALYSIS: If a user provides an image of a medication label or a diagram, explain its contents clearly. Never diagnose a clinical condition (like a rash) from a photo; instead, describe what it *could* be and suggest professional evaluation.
+7. STRUCTURE: Use bolding for key terms and bullet points for steps or common causes.
 `;
 
-export async function sendMessageToGemini(history: Message[], userInput: string): Promise<string> {
-  // Use a new instance to ensure up-to-date API key environment
+export async function sendMessageToGemini(history: Message[]): Promise<{ text: string, sources: GroundingSource[] }> {
+  // Always create a new instance to get the latest environment variables
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
   
-  const contents = history.map(msg => ({
-    role: msg.role === MessageRole.USER ? 'user' : 'model',
-    parts: [{ text: msg.content }]
-  }));
+  const contents = history.map(msg => {
+    const parts: any[] = [{ text: msg.content }];
+    if (msg.image) {
+      parts.push({
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: msg.image.split(',')[1] || msg.image
+        }
+      });
+    }
+    return {
+      role: msg.role === MessageRole.USER ? 'user' : 'model',
+      parts
+    };
+  });
 
   try {
     const response = await ai.models.generateContent({
@@ -33,14 +42,39 @@ export async function sendMessageToGemini(history: Message[], userInput: string)
       contents: contents as any,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.6,
-        topP: 0.9,
+        temperature: 0.3, // Lower temperature for more factual consistency
+        thinkingConfig: {
+          thinkingBudget: 2000 // Enable reasoning for better medical structure
+        },
+        tools: [{ googleSearch: {} }],
       },
     });
 
-    return response.text || "I apologize, I encountered an issue processing that. Please try rephrasing your question.";
+    const text = response.text || "I apologize, I encountered an issue processing that guidance. Please try rephrasing.";
+    const sources: GroundingSource[] = [];
+
+    // Extract grounding sources from Google Search
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+    if (chunks) {
+      chunks.forEach((chunk: any) => {
+        if (chunk.web && chunk.web.uri && chunk.web.title) {
+          sources.push({
+            title: chunk.web.title,
+            uri: chunk.web.uri
+          });
+        }
+      });
+    }
+
+    // Filter for unique source URIs
+    const uniqueSources = sources.filter((v, i, a) => a.findIndex(t => t.uri === v.uri) === i);
+
+    return { text, sources: uniqueSources };
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "The system is currently experiencing high load. If this is an emergency, please contact local medical services immediately. Otherwise, please try again in a moment.";
+    return { 
+      text: "The guidance system is temporarily unavailable. If you have an urgent health concern, please contact a medical professional immediately.", 
+      sources: [] 
+    };
   }
 }
