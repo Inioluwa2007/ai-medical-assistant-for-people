@@ -17,8 +17,8 @@ CORE OPERATIONAL PROTOCOL:
 `;
 
 export async function sendMessageToGemini(history: Message[]): Promise<{ text: string, sources: GroundingSource[] }> {
-  // Always create a new instance to get the latest environment variables
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+  // Use process.env.API_KEY directly as required by the SDK guidelines.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const contents = history.map(msg => {
     const parts: any[] = [{ text: msg.content }];
@@ -37,14 +37,15 @@ export async function sendMessageToGemini(history: Message[]): Promise<{ text: s
   });
 
   try {
+    // Upgraded to gemini-3-pro-preview for complex reasoning and grounding tasks.
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3-pro-preview",
       contents: contents as any,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.3, // Lower temperature for more factual consistency
+        temperature: 0.3,
         thinkingConfig: {
-          thinkingBudget: 2000 // Enable reasoning for better medical structure
+          thinkingBudget: 2000
         },
         tools: [{ googleSearch: {} }],
       },
@@ -53,7 +54,7 @@ export async function sendMessageToGemini(history: Message[]): Promise<{ text: s
     const text = response.text || "I apologize, I encountered an issue processing that guidance. Please try rephrasing.";
     const sources: GroundingSource[] = [];
 
-    // Extract grounding sources from Google Search
+    // Extract grounding sources from Google Search metadata
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
       chunks.forEach((chunk: any) => {
