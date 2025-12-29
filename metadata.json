@@ -2,6 +2,7 @@
   "name": "MediGuide AI",
   "description": "An AI-powered medical assistant providing simple explanations for symptoms, illnesses, and general health guidance. Designed for educational and non-emergency support with built-in medical disclaimers and live web grounding.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ]
 }

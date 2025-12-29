@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Message, MessageRole, GroundingSource } from "../types";
 
@@ -14,12 +15,20 @@ OPERATIONAL PARAMETERS:
 `;
 
 export async function sendMessageToGemini(history: Message[]): Promise<{ text: string, sources: GroundingSource[] }> {
-  // Use the API key from environment variables
-  const apiKey = process.env.API_KEY;
+  // Use the API key from environment variables safely
+  let apiKey = '';
+  try {
+    // Check if process exists to avoid ReferenceError on some mobile browsers/environments
+    if (typeof process !== 'undefined' && process.env) {
+      apiKey = process.env.API_KEY || '';
+    }
+  } catch (e) {
+    console.error("Failed to access process.env", e);
+  }
   
   if (!apiKey) {
     return { 
-      text: "Configuration Error: API Key is missing. Please check your environment settings.", 
+      text: "Configuration Error: API Key is missing or invalid. Please ensure the environment is correctly configured with an API_KEY.", 
       sources: [] 
     };
   }
@@ -44,7 +53,6 @@ export async function sendMessageToGemini(history: Message[]): Promise<{ text: s
   });
 
   try {
-    // For medical reasoning, 'gemini-3-pro-preview' is the most robust choice.
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: contents as any,
@@ -59,7 +67,7 @@ export async function sendMessageToGemini(history: Message[]): Promise<{ text: s
     
     if (candidate?.finishReason === 'SAFETY') {
       return {
-        text: "I cannot provide specific information on this query due to safety protocols. Please consult a healthcare professional.",
+        text: "I cannot provide specific information on this query due to safety protocols. Please consult a healthcare professional for specific concerns.",
         sources: []
       };
     }
@@ -85,11 +93,11 @@ export async function sendMessageToGemini(history: Message[]): Promise<{ text: s
   } catch (error: any) {
     console.error("Gemini API Error:", error);
     let errorMsg = "The service is temporarily unavailable.";
-    if (error.message?.includes("429")) errorMsg = "The system is busy (Rate Limit). Please wait a moment.";
-    if (error.message?.includes("API_KEY_INVALID")) errorMsg = "Invalid API Key. Please verify your credentials.";
+    if (error.message?.includes("429")) errorMsg = "The system is busy (Rate Limit). Please try again in a moment.";
+    if (error.message?.includes("API_KEY_INVALID")) errorMsg = "Invalid API Key configuration.";
     
     return { 
-      text: `${errorMsg} If this is an emergency, contact medical services immediately.`, 
+      text: `${errorMsg} If you are experiencing a medical emergency, please call 911 immediately.`, 
       sources: [] 
     };
   }

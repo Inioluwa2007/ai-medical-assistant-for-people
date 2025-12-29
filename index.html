@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>MediGuide AI - Your Vibrant Health Assistant</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,14 +24,15 @@
     <style type="text/tailwindcss">
       @layer base {
         body {
-          @apply bg-slate-50;
+          @apply bg-slate-50 overflow-hidden;
           background: radial-gradient(at top left, #eff6ff 0%, #ffffff 100%);
           background-attachment: fixed;
+          height: 100dvh;
         }
       }
       @layer components {
         .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
+          width: 4px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
@@ -41,6 +43,9 @@
         .glass {
           @apply bg-white/70 backdrop-blur-xl border-white/20;
           -webkit-backdrop-filter: blur(12px);
+        }
+        .safe-pb {
+          padding-bottom: env(safe-area-inset-bottom, 24px);
         }
       }
     </style>
