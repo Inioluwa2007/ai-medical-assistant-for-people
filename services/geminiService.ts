@@ -15,8 +15,17 @@ CORE OPERATIONAL PROTOCOL:
 `;
 
 export async function sendMessageToGemini(history: Message[]): Promise<{ text: string, sources: GroundingSource[] }> {
-  // Use a fresh instance for every request to ensure environment variables are up to date
-  const apiKey = process.env.API_KEY || "";
+  // Use the API_KEY provided by the environment via Vite's 'define' config
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    console.error("CRITICAL: API_KEY is missing from process.env. Please set it in your environment variables.");
+    return { 
+      text: "Configuration error: The health database connection is not established. Please ensure the API_KEY environment variable is set in your deployment settings.", 
+      sources: [] 
+    };
+  }
+
   const ai = new GoogleGenAI({ apiKey });
   
   const contents = history.map(msg => {
@@ -36,22 +45,21 @@ export async function sendMessageToGemini(history: Message[]): Promise<{ text: s
   });
 
   try {
-    // Upgrading to gemini-3-pro-preview for complex medical reasoning
+    // Using gemini-3-flash-preview for maximum reliability and speed
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: contents as any,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.2, // Lower temperature for more factual consistency
+        temperature: 0.3,
         tools: [{ googleSearch: {} }],
       },
     });
 
-    // Check if the model returned content or was blocked by safety filters
     const candidate = response.candidates?.[0];
     const text = response.text || (candidate?.finishReason === 'SAFETY' 
-      ? "I cannot provide guidance on this specific topic due to safety protocols. If you are concerned about a serious health issue, please consult a medical professional."
-      : "I apologize, I couldn't generate a specific guidance for this. Please try rephrasing.");
+      ? "I cannot provide guidance on this specific health concern due to safety guidelines. Please speak with a healthcare provider directly."
+      : "I apologize, I'm having trouble providing a response right now. Please try rephrasing your question.");
 
     const sources: GroundingSource[] = [];
     const chunks = candidate?.groundingMetadata?.groundingChunks;
@@ -71,13 +79,19 @@ export async function sendMessageToGemini(history: Message[]): Promise<{ text: s
 
     return { text, sources: uniqueSources };
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
+    // Log the full error to help debug in the browser console
+    console.error("Gemini API Error Detail:", {
+      message: error.message,
+      status: error.status,
+      details: error
+    });
     
     let errorMessage = "The guidance system is temporarily unavailable. ";
-    if (!apiKey) {
-      errorMessage = "Configuration error: The health database connection is not established. ";
-    } else if (error.message?.includes("403") || error.message?.includes("permission")) {
-      errorMessage = "Access restricted: The medical database is currently unavailable in your region. ";
+    
+    if (error.message?.includes("API_KEY_INVALID")) {
+      errorMessage = "Authentication failed: The provided API Key is invalid. ";
+    } else if (error.message?.includes("429")) {
+      errorMessage = "The system is currently busy. Please wait a moment and try again. ";
     }
 
     return { 
