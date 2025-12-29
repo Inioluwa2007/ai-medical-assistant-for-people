@@ -7,52 +7,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Tailwind Play CDN for instant styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Plus Jakarta Sans', 'sans-serif'],
-            },
-          },
-        },
-      }
-    </script>
-    
-    <style type="text/tailwindcss">
-      @layer base {
-        body {
-          @apply bg-slate-50 overflow-hidden;
-          background: radial-gradient(at top left, #eff6ff 0%, #ffffff 100%);
-          background-attachment: fixed;
-          height: 100dvh;
-        }
-      }
-      @layer components {
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          @apply bg-slate-300 rounded-full;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          @apply bg-slate-400;
-        }
-        .glass {
-          @apply bg-white/70 backdrop-blur-xl border-white/20;
-          -webkit-backdrop-filter: blur(12px);
-        }
-        .safe-pb {
-          padding-bottom: env(safe-area-inset-bottom, 24px);
-        }
-      }
-    </style>
 <script type="importmap">
 {
   "imports": {
