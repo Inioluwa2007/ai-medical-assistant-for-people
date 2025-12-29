@@ -7,18 +7,18 @@ You are MediGuide AI, a specialized virtual assistant for preliminary medical gu
 You use Google Search to provide up-to-date information.
 
 CORE OPERATIONAL PROTOCOL:
-1. SIMPLE LANGUAGE: Translate complex medical jargon into clear, comforting, non-technical language for students.
-2. NO DIAGNOSIS: Never state "You have [Condition]". Use phrasing like "These symptoms are commonly associated with conditions like...".
-3. SAFETY FIRST: If a user mentions emergency symptoms (chest pain, stroke signs, severe bleeding, or extreme pain), your ONLY response is to instruct them to call 911 (or local emergency services) immediately.
-4. SEARCH GROUNDING: Use Google Search to verify recent health data. Cite your findings indirectly by answering based on the facts.
+1. SIMPLE LANGUAGE: Translate complex medical jargon into clear, comforting, non-technical language.
+2. NO DIAGNOSIS: Never state "You have [Condition]". Use phrasing like "These symptoms are commonly associated with...".
+3. SAFETY FIRST: If a user mentions emergency symptoms (chest pain, stroke signs, severe bleeding), instruct them to call 911 immediately.
+4. SEARCH GROUNDING: Use Google Search to verify health data.
 5. MANDATORY DISCLAIMER: Every response MUST conclude with: "Disclaimer: This is for educational guidance only. It is not a diagnosis or professional medical advice. Please consult a qualified healthcare provider for clinical care."
-6. IMAGE ANALYSIS: If a user provides an image of a medication label or a diagram, explain its contents clearly. Never diagnose a clinical condition (like a rash) from a photo; instead, describe what it *could* be and suggest professional evaluation.
-7. STRUCTURE: Use bolding for key terms and bullet points for steps or common causes.
+6. STRUCTURE: Use bolding for key terms and bullet points for lists.
 `;
 
 export async function sendMessageToGemini(history: Message[]): Promise<{ text: string, sources: GroundingSource[] }> {
-  // Use process.env.API_KEY directly as required by the SDK guidelines.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Ensure we have a valid key or at least don't crash the constructor
+  const apiKey = process.env.API_KEY || "";
+  const ai = new GoogleGenAI({ apiKey });
   
   const contents = history.map(msg => {
     const parts: any[] = [{ text: msg.content }];
@@ -37,24 +37,20 @@ export async function sendMessageToGemini(history: Message[]): Promise<{ text: s
   });
 
   try {
-    // Upgraded to gemini-3-pro-preview for complex reasoning and grounding tasks.
+    // Using gemini-3-flash-preview for better availability and performance in production
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-3-flash-preview",
       contents: contents as any,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         temperature: 0.3,
-        thinkingConfig: {
-          thinkingBudget: 2000
-        },
         tools: [{ googleSearch: {} }],
       },
     });
 
-    const text = response.text || "I apologize, I encountered an issue processing that guidance. Please try rephrasing.";
+    const text = response.text || "I apologize, I couldn't generate a response. Please try rephrasing your question.";
     const sources: GroundingSource[] = [];
 
-    // Extract grounding sources from Google Search metadata
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
     if (chunks) {
       chunks.forEach((chunk: any) => {
@@ -67,14 +63,19 @@ export async function sendMessageToGemini(history: Message[]): Promise<{ text: s
       });
     }
 
-    // Filter for unique source URIs
     const uniqueSources = sources.filter((v, i, a) => a.findIndex(t => t.uri === v.uri) === i);
 
     return { text, sources: uniqueSources };
-  } catch (error) {
-    console.error("Gemini API Error:", error);
+  } catch (error: any) {
+    console.error("Gemini API Error Detail:", error);
+    
+    let errorMessage = "The guidance system is temporarily unavailable. ";
+    if (error.message?.includes("API_KEY_INVALID") || !apiKey) {
+      errorMessage = "Configuration error: The health database could not be reached. Please check your system settings.";
+    }
+
     return { 
-      text: "The guidance system is temporarily unavailable. If you have an urgent health concern, please contact a medical professional immediately.", 
+      text: `${errorMessage}If you have an urgent health concern, please contact a medical professional immediately.`, 
       sources: [] 
     };
   }
